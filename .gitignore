@@ -1,0 +1,10 @@
+# macOS
+.DS_Store
+
+# IDEs
+.vscode/
+.idea/
+
+# Large media files (to avoid clogging the repo, unless they are specifically demo.gif)
+*.mp4
+*.mov
