@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GraphTerminal - Interactive Concept Map</title>
+    <link rel="stylesheet" href="style.css">
+    
+    <!-- Google Drive API Scripts -->
+    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
+    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="mobile-tabs" id="mobile-tabs">
+        <button id="tab-chat" class="active">CHAT</button>
+        <button id="tab-tree">TREE</button>
+    </div>
+
+    <div class="container">
+        <!-- Sidebar for Chat History (Hidden by default or toggled) -->
+        <div id="sidebar" class="sidebar closed">
+            <div class="sidebar-header">
+                <h2>Sessions</h2>
+                <button id="btn-new-chat" class="btn-new-chat">+ New Chat</button>
+            </div>
+            <ul id="session-list" class="session-list"></ul>
+        </div>
+
+        <!-- Left Panel: Chat Dashboard -->
+        <div class="panel chat-panel active-tab" id="chat-panel">
+            <div class="chat-header">
+                <div class="chat-header-title">
+                    <button id="btn-toggle-sidebar" class="btn-icon">[ MENU ]</button>
+                    <span class="sys-title">GraphTerminal</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <button id="btn-toggle-tree" class="btn-icon" title="ツリーを開閉">[ TREE ]</button>
+                    <button id="btn-toggle-knowledge" class="btn-icon" title="ナレッジを開閉">[ KNOWLEDGE ]</button>
+                    <button id="btn-settings" class="btn-icon" title="API設定">[ CONFIG ]</button>
+                    <div id="context-badge" class="context-badge">CTX: NONE</div>
+                </div>
+            </div>
+            
+            <div class="chat-history" id="chat-history">
+                <div class="chat-message ai">
+                    こんにちは。何について話しましょうか？会話から概念を自動抽出し、右側にツリーとして構築します。
+                </div>
+            </div>
+            
+            <!-- File Attachment Preview Area -->
+            <div id="attachment-preview" class="attachment-preview hidden"></div>
+            
+            <div class="chat-input-area">
+                <button id="btn-attach" class="btn-icon btn-attach" title="ファイル/画像を添付">[ + FILE ]</button>
+                <input type="file" id="file-input" style="display:none;" multiple accept="image/*,.txt,.csv,.md,.py,.js,.json">
+                
+                <textarea id="chat-input" placeholder="> Input query... (Enter to send, Shift+Enter for newline)" rows="1" autofocus></textarea>
+                <div class="chat-actions">
+                    <button id="chat-submit" class="btn-send">[ SEND ]</button>
+                    <button id="chat-stop" class="btn-send hidden">[ STOP ]</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Resizer -->
+        <div id="resizer" class="resizer"></div>
+
+        <!-- Right Panel: Tree UI -->
+        <div id="tree-panel" class="panel tree-panel closed">
+            <div class="tree-header">
+                <div class="tree-header-main">
+                    <span class="sys-title">CONCEPT_MATRIX</span>
+                    <span id="folder-indicator" class="folder-indicator" title="保存先フォルダを変更" onclick="showPicker()">
+                        [ DIR: <span id="current-folder-name" style="font-weight:normal;">root</span> ]
+                    </span>
+                </div>
+                <!-- ツリーの上部機能ボタン群 -->
+                <div class="tree-header-actions">
+                    <button id="btn-export-all" class="btn-icon btn-export" title="ツリー全体をMD保存">[ EXPORT ]</button>
+                    <button id="btn-undo" class="btn-icon btn-undo" title="一つ前の状態に戻す" disabled>[ UNDO ]</button>
+                    <button id="btn-import" class="btn-icon btn-import" title="過去のMDファイルをインポート">[ IMPORT ]</button>
+                    <input type="file" id="import-file-input" style="display:none;" accept=".md,.txt">
+                    <!-- ローディング表示 -->
+                    <div id="tree-loading" class="tree-loading hidden">
+                        <span class="mono-text">EXTRACTING...</span>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="dnd-overlay" class="dnd-overlay hidden">
+                ここにテキストをドロップして新規作成
+            </div>
+
+            <!-- Dynamic tree injected here -->
+            <div class="tree-content" id="tree-content">
+                <ul id="tree" class="tree"></ul>
+            </div>
+            
+            <div id="tree-drop-zone" class="tree-drop-zone">
+                [ DROP TEXT HERE TO CREATE CONCEPT ]
+            </div>
+        </div>
+
+        <!-- Right Panel: Knowledge Sidebar -->
+        <div id="knowledge-sidebar" class="sidebar right-sidebar closed">
+            <div class="sidebar-header">
+                <span class="sys-title">KNOWLEDGE_BASE</span>
+                <span id="knowledge-folder-indicator" class="folder-indicator" title="ナレッジフォルダを設定" onclick="showKnowledgePicker()">
+                    [ DIR: <span id="knowledge-folder-name" style="font-weight:normal;">None</span> ]
+                </span>
+            </div>
+            
+            <div class="knowledge-controls">
+                <input type="text" id="knowledge-search" placeholder="Filter knowledge...">
+                <button id="btn-sync-knowledge" class="btn-small" style="width:100%; margin-top:8px;">[ SYNC DRIVE ]</button>
+            </div>
+
+            <!-- ここでLLMのレコメンドを待つ・コンテキスト適用ボタン -->
+            <div id="knowledge-apply-zone" class="knowledge-apply-zone hidden">
+                <p style="font-size:0.8rem; margin-bottom:8px;">LLM Recommended Contexts:</p>
+                <button id="btn-apply-knowledge" class="btn-summarize" style="width:100%; padding:8px;">[ APPLY TO CHAT ]</button>
+            </div>
+
+            <ul class="session-list" id="knowledge-list">
+                <!-- Knowledge items will be populated here -->
+                <li class="session-item" style="opacity:0.5; font-style:italic;">No knowledge directory selected.</li>
+            </ul>
+        </div>
+
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settings-modal" class="modal hidden">
+        <div class="modal-content">
+            <h3 class="sys-title">API_CONFIGURATION</h3>
+            <p>GraphTerminalを利用するためには、各APIキーを入力してください。<br>(情報はブラウザにのみ保存されます)</p>
+            
+            <label>GEMINI_API_KEY</label>
+            <input type="password" id="input-gemini-key" placeholder="AIzaSy...">
+            
+            <label>GOOGLE_PICKER_API_KEY (OPTIONAL)</label>
+            <input type="password" id="input-google-key" placeholder="AIzaSy...">
+            
+            <div class="form-group">
+                <label for="setting-client-id">Google Client ID (Data Sync)</label>
+                <input type="text" id="setting-client-id" placeholder="1234567890-xxx.apps.googleusercontent.com">
+            </div>
+            
+            <div class="form-group">
+                <label for="setting-md-template">エクスポート時のフォーマットルール (メタデータ)</label>
+                <textarea id="setting-md-template" rows="5" style="width:100%; box-sizing:border-box; font-family:var(--font-mono); font-size:0.8rem; background:transparent; color:var(--text-primary); border:1px solid var(--panel-border); padding:8px;">---
+> 【SYSTEM_META】
+> 概要: これはこのファイルの内容サマリーです。
+> タグ: #Example</textarea>
+                <small style="color:var(--text-secondary); margin-top:4px; display:block;">※空で保存するとデフォルトに戻ります。MDファイルの末尾等に付加されRAG時にメタデータとして使われます。</small>
+            </div>
+
+            <div class="modal-footer">
+                <button id="btn-close-settings" class="btn-secondary">[ CLOSE ]</button>
+                <button id="btn-save-settings" class="btn-send">[ SAVE ]</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
