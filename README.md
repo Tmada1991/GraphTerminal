@@ -6,6 +6,8 @@
 > **"From Answer Generator to Understanding Engine."**
 > A cognitive interface that treats interactions with LLMs not as a "chat history" but as an **"understanding structure"**.
 
+**[▶ Try it Now](https://tmada1991.github.io/GraphTerminal/)** · **[🌐 Website / LP](https://slxbtybj.gensparkclaw.com)** · **[📝 Give Feedback](https://github.com/Tmada1991/GraphTerminal/issues)**
+
 ![GraphTerminal Demo](./demo.gif)<!-- TODO: Insert demo GIF here -->
 
 ## 🧩 Overview
@@ -138,6 +140,15 @@ GraphTerminalは**「対話ログ」ではなく「思考構造」を扱う**と
 * "We don't know the best UI yet."
 * より良い思考インターフェースを模索中です。UI/UXのフィードバック、構造設計の議論、新しいユースケースの提案を大歓迎します！特にノード構造の可視化改善やDAG操作のUI修正のPRをお待ちしています。
 
+## 🌐 リンク
+
+| | |
+|---|---|
+| **アプリ** | [▶ tmada1991.github.io/GraphTerminal](https://tmada1991.github.io/GraphTerminal/) |
+| **LP** | [🌐 slxbtybj.gensparkclaw.com](https://slxbtybj.gensparkclaw.com) |
+| **フィードバック** | [📝 Issues](https://github.com/Tmada1991/GraphTerminal/issues) |
+
 ## 📜 ライセンス
 This project is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
 ※個人利用・学術研究・非営利目的での利用/改変は完全自由です。商用利用は禁じます。
+
