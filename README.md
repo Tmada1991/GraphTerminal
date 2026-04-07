@@ -6,9 +6,9 @@
 > **"From Answer Generator to Understanding Engine."**
 > A cognitive interface that treats interactions with LLMs not as a "chat history" but as an **"understanding structure"**.
 
-**[▶ Try it Now](https://tmada1991.github.io/GraphTerminal/)** · **[🌐 Website / LP](https://slxbtybj.gensparkclaw.com)** · **[📝 Give Feedback](https://github.com/Tmada1991/GraphTerminal/issues)**
+![GraphTerminal Demo](./demo.gif)
 
-![GraphTerminal Demo](./demo.gif)<!-- TODO: Insert demo GIF here -->
+**[▶ Try it Now](https://tmada1991.github.io/GraphTerminal/)** · **[🌐 Website / LP](https://slxbtybj.gensparkclaw.com)** · **[📝 Give Feedback](https://github.com/Tmada1991/GraphTerminal/issues)**
 
 ## 🧩 Overview
 GraphTerminal is a UI that automatically extracts concepts from conversations with LLMs and dynamically builds them into a Tree (DAG) structure. It transforms fragments of knowledge from fleeting chat logs into a **"structurally understandable canvas"**.
@@ -49,6 +49,32 @@ Assign states to nodes (e.g., Unresolved, Needs Verification, Ambiguous) to **ex
 ### 5. BYOK & Fully Local
 * Runs entirely in your browser using your own API key (Gemini, etc.).
 * No backend servers required; your data stays in your browser and your Google Drive.
+
+## ✨ Detailed Feature List
+
+### 1. Chat & Session Management
+* **Multi-session Management**: Create, switch, delete sessions. Auto-saving to LocalStorage. Auto-generated chat titles.
+* **Advanced Chat UI**: Enter to send, Shift+Enter for newline. Auto-resizing textarea. 'STOP' button to abort ongoing AI generation.
+* **File Attachments**: Drag & drop or click to attach images and text/code files (.txt, .md, .py, etc.). Inline previews and removal.
+* **Resizable & Responsive UI**: Draggable resizer between chat and tree panels. Tab switching on mobile.
+
+### 2. Concept Tree (CONCEPT_MATRIX)
+* **Auto Concept Extraction**: Automatically extracts key concepts from AI responses in the background and adds them as tree nodes (DAG).
+* **Context Application (`[ CTX_ON ]`)**: Select any topic node to dynamically inject its entire content as "Background Context" into the next prompt.
+* **Node Summarization (`[ SUMMARIZE ]`)**: Use AI to compress and organize all notes accumulated within a specific node into a single summary.
+* **Drag & Drop to Tree**: Manually create or update nodes by dragging any text into the tree panel.
+* **Undo Functionality**: Keeps track of up to 20 tree state changes, allowing you to easily revert changes.
+
+### 3. Knowledge Base & Google Drive Integration
+* **Google Drive Sync**: Authenticate with Google Drive (via Picker UI) to index text/markdown files into the local `knowledgeCache`.
+* **LLM Context Suggestion**: The LLM automatically analyzes your prompt and suggests up to 10 relevant knowledge files from your index.
+* **RAG-style Knowledge Retrieval**: Applies selected Google Drive files directly into the prompt as "known context" before generating an answer.
+
+### 4. I/O & Settings
+* **Markdown Export**: Export the entire tree or individual nodes as structured Markdown files directly to Google Drive or local storage.
+* **Custom Meta-Data Template**: Easily append user-defined system metadata to exports for future RAG integrations.
+* **Markdown Import**: Import previously exported `.md` files to reconstruct the concept tree.
+* **Local Settings Management**: API keys (Gemini, Google Picker, Client ID) are managed safely in the browser's LocalStorage.
 
 ---
 
@@ -122,6 +148,32 @@ GraphTerminalは**「対話ログ」ではなく「思考構造」を扱う**と
 ### 5. BYOK & 完全ローカル駆動
 * お手持ちのAPIキーを入力するだけでブラウザ上で動作。バックエンド不要。
 
+## ✨ 機能一覧 (Detailed Features)
+
+### 1. チャット・セッション管理
+* **マルチセッション管理**: 新規作成、切り替え、削除。初回メッセージからの自動タイトル生成。履歴のローカル保存。
+* **高機能チャットUI**: Enter送信 / Shift+Enter改行。自動高さ可変適応。生成の途中停止（STOP）機能。
+* **ファイル添付 & D&D対応**: 画像、テキスト、コード（.py, .md 等）をそのままアップロード、または直接ドラッグ＆ドロップで添付可能。
+* **レスポンシブなUI**: ドラッグ可能なリサイズバー。モバイルでのタブ切り替え。
+
+### 2. 概念ツリー・構造化機能（CONCEPT_MATRIX）
+* **自動概念抽出機能**: AI回答完了後、バックグラウンドで会話から概念を自動抽出しツリーへ反映。
+* **コンテキスト適用 (`[ CTX_ON ]`)**: 特定のノードを選択状態にすることで、そのノードの全内容を次のプロンプトの前提として注入。
+* **自動要約 (`[ SUMMARIZE ]`)**: 各ノードに蓄積したメモをAIがまとめて1つの要約に再構築。
+* **テキストのD&D追加**: チャットテキストをツリーにドラッグ＆ドロップして直感的に新規ノード作成やメモ追加が可能。
+* **アンドゥ (UNDO)**: ツリーの変更履歴を最大20件まで保持し、元の状態に戻すことが可能。
+
+### 3. ナレッジ・外部連携（Google Drive）
+* **Google Drive同期**: Drive内の特定フォルダを指定し、中のテキスト/Markdownファイルをローカルにインデックス化。
+* **LLMによるノード推薦**: 入力プロンプトに基づいて、インデックス済みの全ナレッジから最も関連するファイルをAIが最大10個まで自動提案。
+* **RAGベースのナレッジ適用**: 選択したファイルの本文を「既知のナレッジ」としてプロンプトに結合してからAIに回答させる仕組み。
+
+### 4. 設定とI/O（Import/Export）
+* **Markdownエクスポート**: ツリー全体、または個別ノードをMarkdownとして出力。連携時にはGoogle Driveの指定フォルダに直接アップロードも可能。
+* **Markdownインポート**: 以前書き出した `.md` ファイルを読み込み、ツリー構造を復元。
+* **カスタムメタデータテンプレート**: RAGシステム等への組み込みを見越し、出力MDファイルの末尾に任意のメタデータを自動挿入可能。
+* **ローカルセキュア管理**: Gemini APIキー、Google Picker APIキーなどはブラウザのLocalStorageで安全に管理。
+
 ---
 
 ## 🆚 既存ツールとの違い
@@ -140,6 +192,10 @@ GraphTerminalは**「対話ログ」ではなく「思考構造」を扱う**と
 * "We don't know the best UI yet."
 * より良い思考インターフェースを模索中です。UI/UXのフィードバック、構造設計の議論、新しいユースケースの提案を大歓迎します！特にノード構造の可視化改善やDAG操作のUI修正のPRをお待ちしています。
 
+## 📜 ライセンス
+This project is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
+※個人利用・学術研究・非営利目的での利用/改変は完全自由です。商用利用は禁じます。
+
 ## 🌐 リンク
 
 | | |
@@ -147,8 +203,3 @@ GraphTerminalは**「対話ログ」ではなく「思考構造」を扱う**と
 | **アプリ** | [▶ tmada1991.github.io/GraphTerminal](https://tmada1991.github.io/GraphTerminal/) |
 | **LP** | [🌐 slxbtybj.gensparkclaw.com](https://slxbtybj.gensparkclaw.com) |
 | **フィードバック** | [📝 Issues](https://github.com/Tmada1991/GraphTerminal/issues) |
-
-## 📜 ライセンス
-This project is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
-※個人利用・学術研究・非営利目的での利用/改変は完全自由です。商用利用は禁じます。
-
