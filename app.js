@@ -1,26 +1,179 @@
-// ▼ GraphTerminal アプリ設定 ▼
-// API Key は画面上の「⚙設定」から入力し、localStorageに保存されます。
-let GEMINI_API_KEY = localStorage.getItem('talktree_gemini_key') || '';
+import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-vertexai.js";
+import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+const firebaseConfig = {
+  apiKey: "AIzaSyDfLLHd8tUYj6wG9c6lNCHCs5yxUyqRWWw",
+  authDomain: "gen-lang-client-0344873040.firebaseapp.com",
+  projectId: "gen-lang-client-0344873040",
+  storageBucket: "gen-lang-client-0344873040.firebasestorage.app",
+  messagingSenderId: "670847723180",
+  appId: "1:670847723180:web:015f34e7c549945ab6e109"
+};
 
-// --- Google Drive API Settings ---
-let GOOGLE_CLIENT_ID = localStorage.getItem('talktree_google_client') || '';
-let GOOGLE_API_KEY = localStorage.getItem('talktree_google_key') || '';
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const vertexAI = getVertexAI(app);
+const db = getFirestore(app);
+const model = getGenerativeModel(vertexAI, { model: "gemini-2.5-pro" });
+
+// API Keys are now derived automatically for Google Picker
+let GOOGLE_API_KEY = firebaseConfig.apiKey;
+let GOOGLE_CLIENT_ID = firebaseConfig.messagingSenderId;
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
-// --- Export Template ---
-const DEFAULT_MD_TEMPLATE = `---\n> 【SYSTEM_META】\n> 概要: これはこのファイルの内容サマリーです。\n> タグ: #Example\n`;
+
+// --- I18N LOGIC ---
+let currentLang = localStorage.getItem('talktree_lang') || 'ja';
+const i18nDict = {
+    ja: {
+        loginDesc: "ログインしてセキュアに接続します。<br>Geminiによる推論およびGoogle Driveへのアクセス権がアプリに付与されます。",
+        welcomeMsg: "こんにちは。何について話しましょうか？会話から概念を自動抽出し、右側にツリーとして構築します。",
+        dndOverlay: "ここにテキストをドロップして新規作成",
+        dropText: "[ DROP TEXT HERE TO CREATE CONCEPT ]",
+        settingsTitle: "SYSTEM_CONFIGURATION",
+        settingsDesc: "GraphTerminalの各種設定を行います。(情報はブラウザにのみ保存されます)",
+        settingsTemplateLabel: "エクスポート時のフォーマットルール (メタデータ)",
+        settingsTemplateDesc: "※空で保存するとデフォルトに戻ります。MDファイルの末尾等に付加されRAG時にメタデータとして使われます。",
+        btnLogout: "[ LOG OUT ACCOUNT ]",
+        btnClose: "[ CLOSE ]",
+        btnSave: "[ SAVE ]",
+        llmRec: "LLM Recommended Contexts:",
+        btnFolderUp: "[ ⬅ UP ]",
+        treeToggleTitle: "ツリーを開閉",
+        configTitle: "API設定",
+        knowledgeToggleTitle: "ナレッジを開閉",
+        folderChangeTitle: "保存先フォルダを変更",
+        exportTitle: "ツリー全体をMD保存",
+        undoTitle: "一つ前の状態に戻す",
+        importTitle: "過去のMDファイルをインポート",
+        attachTitle: "ファイル/画像を添付",
+        knowledgeSetTitle: "ナレッジフォルダを設定",
+        tabChat: "チャット",
+        tabTree: "ツリー",
+        btnNewChat: "＋新規会話",
+        btnMenu: "[ メニュー ]",
+        btnConfig: "[ 設定 ]",
+        btnKnowledge: "[ ナレッジ ]",
+        btnTree: "[ ツリー ]",
+        btnExport: "[ エクスポート ]",
+        btnUndo: "[ 取り消し ]",
+        btnRedo: "[ やり直し ]",
+        redoTitle: "やり直し",
+        btnImport: "[ インポート ]",
+        btnFile: "[ ＋ファイル ]",
+        btnSend: "[ 送信 ]",
+        btnStop: "[ 停止 ]",
+        btnSync: "[ ドライブ同期 ]",
+        btnApply: "[ 文脈に適用 ]",
+        btnCancel: "[ キャンセル ]",
+        btnCreateFolder: "[ ＋新規フォルダ作成 ]",
+        loadingFolders: "読み込み中...",
+        selectExport: "保存先フォルダの選択",
+        selectKnowledge: "ナレッジフォルダの選択",
+        noFolders: "フォルダがありません",
+        noFoldersAccessible: "このアプリ用のフォルダがまだありません",
+        enterFolderName: "新しいフォルダ名を入力してください:",
+        createFolderError: "フォルダの作成に失敗しました"
+
+    },
+    en: {
+        loginDesc: "Login to connect securely.<br>Gemini reasoning and Google Drive access will be granted to the app.",
+        welcomeMsg: "Hello. What would you like to talk about? I will extract concepts from our conversation and build a tree.",
+        dndOverlay: "Drop text here to create a node",
+        dropText: "[ DROP TEXT HERE TO CREATE CONCEPT ]",
+        settingsTitle: "SYSTEM_CONFIGURATION",
+        settingsDesc: "Configure GraphTerminal globally. (Stored only in your browser)",
+        settingsTemplateLabel: "Export Format Rules (Metadata)",
+        settingsTemplateDesc: "* If saved empty, returns to default. Attached at EOF of MD for RAG indexing.",
+        btnLogout: "[ LOG OUT ACCOUNT ]",
+        btnClose: "[ CLOSE ]",
+        btnSave: "[ SAVE ]",
+        llmRec: "LLM Recommended Contexts:",
+        btnFolderUp: "[ ⬅ UP ]",
+        treeToggleTitle: "Toggle Tree",
+        configTitle: "API Config",
+        knowledgeToggleTitle: "Toggle Knowledge",
+        folderChangeTitle: "Change Export Folder",
+        exportTitle: "Export entire tree as MD",
+        undoTitle: "Undo previous state",
+        importTitle: "Import previous MD files",
+        attachTitle: "Attach file/image",
+        knowledgeSetTitle: "Set Knowledge base folder",
+        tabChat: "CHAT",
+        tabTree: "TREE",
+        btnNewChat: "+ New Chat",
+        btnMenu: "[ MENU ]",
+        btnConfig: "[ CONFIG ]",
+        btnKnowledge: "[ KNOWLEDGE ]",
+        btnTree: "[ TREE ]",
+        btnExport: "[ EXPORT ]",
+        btnUndo: "[ UNDO ]",
+        btnRedo: "[ REDO ]",
+        redoTitle: "Redo",
+        btnImport: "[ IMPORT ]",
+        btnFile: "[ + FILE ]",
+        btnSend: "[ SEND ]",
+        btnStop: "[ STOP ]",
+        btnSync: "[ SYNC DRIVE ]",
+        btnApply: "[ APPLY TO CHAT ]",
+        btnCancel: "[ CANCEL ]",
+        btnCreateFolder: "[ + CREATE NEW FOLDER ]",
+        loadingFolders: "LOADING...",
+        selectExport: "SELECT MD EXPORT FOLDERS",
+        selectKnowledge: "SELECT KNOWLEDGE BASE",
+        noFolders: "NO FOLDERS FOUND",
+        noFoldersAccessible: "NO FOLDERS ACCESSIBLE BY APP",
+        enterFolderName: "Enter new folder name:",
+        createFolderError: "Failed to create folder"
+
+    }
+};
+
+function t(key) {
+    return i18nDict[currentLang][key] || key;
+}
+
+function applyLanguage() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (i18nDict[currentLang][key]) {
+            el.innerHTML = i18nDict[currentLang][key];
+        }
+    });
+    document.querySelectorAll('[data-i18n-title]').forEach(el => {
+        const key = el.getAttribute('data-i18n-title');
+        if (i18nDict[currentLang][key]) {
+            el.title = i18nDict[currentLang][key];
+        }
+    });
+    const btnLang = document.getElementById('btn-toggle-lang');
+    if (btnLang) btnLang.textContent = currentLang === 'en' ? '[ EN ]' : '[ JA ]';
+    
+    const chatInput = document.getElementById('chat-input');
+    if(chatInput) {
+        chatInput.placeholder = currentLang === 'en' 
+            ? "> Input query... (Enter to send, Shift+Enter for newline)"
+            : "> クエリを入力... (Enterで送信、Shift+Enterで改行)";
+    }
+}
+
+const DEFAULT_MD_TEMPLATE = `---
+> 【SYSTEM_META】
+> 概要: これはこのファイルの内容サマリーです。
+> タグ: #Example
+`;
 let MD_EXPORT_TEMPLATE = localStorage.getItem('talktree_md_template') || DEFAULT_MD_TEMPLATE;
 
-// --- State ---
-let tokenClient;
-let accessToken = null;
+let accessToken = localStorage.getItem('talktree_drive_token') || null;
+let tokenExpiry = localStorage.getItem('talktree_drive_token_expiry') || null;
 let currentDriveFolderId = 'root';
 let currentDriveFolderName = 'マイドライブ';
 
-// --- Knowledge Base State ---
 let currentKnowledgeFolderId = localStorage.getItem('talktree_knowledge_folder_id') || null;
 let currentKnowledgeFolderName = localStorage.getItem('talktree_knowledge_folder_name') || 'None';
 let knowledgeCache = JSON.parse(localStorage.getItem('talktree_knowledge_cache') || '[]');
+
 
 // --- Session & History State ---
 let sessions = []; // [{ id, title, treeNodes:[], chatHistoryData:[], lastModified }]
@@ -39,7 +192,8 @@ const extractionQueue = [];
 let isExtracting = false;
 let currentAbortController = null;
 let extractAbortController = null;
-let treeHistoryStack = []; // Undo用の状態履歴
+let treeHistoryStack = [];
+let redoHistoryStack = []; // Undo用の状態履歴
 
 const dom = {
     sidebar: document.getElementById('sidebar'),
@@ -61,15 +215,13 @@ const dom = {
     treeLoading: document.getElementById('tree-loading'),
 
     btnUndo: document.getElementById('btn-undo'),
+    btnRedo: document.getElementById('btn-redo'),
     btnImport: document.getElementById('btn-import'),
     importFileInput: document.getElementById('import-file-input'),
     btnExportAll: document.getElementById('btn-export-all'),
 
     btnSettings: document.getElementById('btn-settings'),
     settingsModal: document.getElementById('settings-modal'),
-    inputGeminiKey: document.getElementById('input-gemini-key'),
-    inputGoogleKey: document.getElementById('input-google-key'),
-    inputGoogleClient: document.getElementById('setting-client-id'),
     inputMdTemplate: document.getElementById('setting-md-template'),
     btnSaveSettings: document.getElementById('btn-save-settings'),
     btnCloseSettings: document.getElementById('btn-close-settings'),
@@ -80,24 +232,14 @@ const dom = {
     btnToggleTree: document.getElementById('btn-toggle-tree'),
 };
 
-// --- Settings Management ---
 function checkAndShowSettings() {
-    if (!GEMINI_API_KEY) {
-        openSettingsModal();
-    }
+    // API key check is handled by auth
 }
 function openSettingsModal() {
-    dom.inputGeminiKey.value = GEMINI_API_KEY;
-    dom.inputGoogleKey.value = GOOGLE_API_KEY;
-    dom.inputGoogleClient.value = GOOGLE_CLIENT_ID;
     dom.inputMdTemplate.value = MD_EXPORT_TEMPLATE;
     dom.settingsModal.classList.remove('hidden');
 }
 function saveSettings() {
-    GEMINI_API_KEY = dom.inputGeminiKey.value.trim();
-    GOOGLE_API_KEY = dom.inputGoogleKey.value.trim();
-    GOOGLE_CLIENT_ID = dom.inputGoogleClient.value.trim();
-
     let tempTemplate = dom.inputMdTemplate.value.trim();
     if (!tempTemplate) {
         alert("メタデータフォーマットは空にできません。デフォルトを自動適用します。");
@@ -105,12 +247,7 @@ function saveSettings() {
         dom.inputMdTemplate.value = tempTemplate;
     }
     MD_EXPORT_TEMPLATE = tempTemplate;
-
-    localStorage.setItem('talktree_gemini_key', GEMINI_API_KEY);
-    localStorage.setItem('talktree_google_key', GOOGLE_API_KEY);
-    localStorage.setItem('talktree_google_client', GOOGLE_CLIENT_ID);
     localStorage.setItem('talktree_md_template', MD_EXPORT_TEMPLATE);
-
     dom.settingsModal.classList.add('hidden');
 }
 
@@ -241,17 +378,30 @@ function deleteSession(id) {
 // --- Undo Management ---
 function saveTreeStateForUndo() {
     treeHistoryStack.push(JSON.parse(JSON.stringify(treeNodes)));
-    if (treeHistoryStack.length > 20) treeHistoryStack.shift(); // 最大20回の履歴
+    redoHistoryStack = [];
+    if (treeHistoryStack.length > 20) treeHistoryStack.shift();
     updateUndoButtonState();
 }
 
 function updateUndoButtonState() {
     dom.btnUndo.disabled = treeHistoryStack.length === 0;
+    if (dom.btnRedo) dom.btnRedo.disabled = redoHistoryStack.length === 0;
 }
 
 function undoTreeState() {
     if (treeHistoryStack.length > 0) {
+        redoHistoryStack.push(JSON.parse(JSON.stringify(treeNodes)));
         treeNodes = treeHistoryStack.pop();
+        renderTree();
+        updateUndoButtonState();
+        saveSession();
+    }
+}
+
+function redoTreeState() {
+    if (redoHistoryStack.length > 0) {
+        treeHistoryStack.push(JSON.parse(JSON.stringify(treeNodes)));
+        treeNodes = redoHistoryStack.pop();
         renderTree();
         updateUndoButtonState();
         saveSession();
@@ -260,6 +410,43 @@ function undoTreeState() {
 
 // --- Initial Render ---
 function init() {
+    // -- Firebase Auth Observer --
+    onAuthStateChanged(auth, (user) => {
+        const overlay = document.getElementById('login-overlay');
+        if (user) {
+            if (overlay) overlay.classList.add('hidden');
+        } else {
+            if (overlay) overlay.classList.remove('hidden');
+        }
+    });
+
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin) {
+        btnLogin.addEventListener('click', async () => {
+            try {
+                const provider = new GoogleAuthProvider();
+                provider.addScope('https://www.googleapis.com/auth/drive.file');
+                const result = await signInWithPopup(auth, provider);
+                const credential = GoogleAuthProvider.credentialFromResult(result);
+                if (credential) {
+                    accessToken = credential.accessToken;
+                    if (window.gapi && window.gapi.client) gapi.client.setToken({ access_token: accessToken });
+                }
+            } catch (e) {
+                console.error(e);
+                alert("Googleログインに失敗しました: " + e.message);
+            }
+        });
+    }
+
+    // Load GAPI
+    if (window.gapi) {
+        gapi.load('client', async () => {
+            await gapi.client.init({});
+            gapi.client.load('drive', 'v3');
+        });
+    }
+
     loadSessions();
 
     document.getElementById('btn-apply-knowledge').addEventListener('click', async () => {
@@ -304,6 +491,7 @@ function init() {
         createNewSession();
     });
     dom.btnUndo.addEventListener('click', undoTreeState);
+    if (dom.btnRedo) dom.btnRedo.addEventListener('click', redoTreeState);
     dom.btnExportAll.addEventListener('click', exportAllToMarkdown);
 
     // --- Close sidebar when clicking main chat area ---
@@ -379,6 +567,40 @@ function init() {
     dom.btnSettings.addEventListener('click', openSettingsModal);
     dom.btnCloseSettings.addEventListener('click', () => dom.settingsModal.classList.add('hidden'));
     dom.btnSaveSettings.addEventListener('click', saveSettings);
+
+    // Lang Change
+    const btnToggleLang = document.getElementById('btn-toggle-lang');
+    if (btnToggleLang) {
+        btnToggleLang.addEventListener('click', () => {
+            currentLang = currentLang === 'en' ? 'ja' : 'en';
+            localStorage.setItem('talktree_lang', currentLang);
+            applyLanguage();
+        });
+    }
+
+    // Logout
+    const btnLogout = document.getElementById('btn-logout');
+    if (btnLogout) {
+        btnLogout.addEventListener('click', async () => {
+            if(confirm(currentLang === 'en' ? "Are you sure you want to log out?" : "本当にログアウトしますか？")) {
+                try {
+                    await signOut(auth);
+                    accessToken = null;
+                    localStorage.removeItem('talktree_drive_token');
+                    window.location.reload();
+                } catch (e) {
+                    console.error("Logout Error:", e);
+                }
+            }
+        });
+    }
+
+    const btnClosePicker = document.getElementById('btn-close-folder-picker');
+    if (btnClosePicker) {
+        btnClosePicker.addEventListener('click', () => {
+            document.getElementById('folder-picker-modal').classList.add('hidden');
+        });
+    }
 
     // Textarea: Enterで送信、Shift+Enterで改行
     let isComposing = false;
@@ -578,30 +800,61 @@ ${listText}
         const payload = [{ role: 'user', parts: [{ text: prompt }] }];
         const resultText = await fetchGeminiAPI(payload);
 
-        btnApply.textContent = '[ APPLY TO CHAT ]';
-        btnApply.disabled = false;
-
         const returnedIds = resultText.split(',').map(s => s.trim()).filter(s => s.length > 5);
 
         // チェックボックスの状態を更新
+        let checkedCount = 0;
         const checkboxes = document.querySelectorAll('.knowledge-checkbox');
         checkboxes.forEach(cb => {
             if (returnedIds.includes(cb.dataset.id)) {
                 cb.checked = true;
+                checkedCount++;
             } else {
                 cb.checked = false;
             }
         });
 
+        btnApply.textContent = t('btnApply') || '[ APPLY TO CHAT ]';
+        btnApply.disabled = (checkedCount === 0);
+
     } catch (e) {
         console.error("Propose error", e);
         btnApply.textContent = '[ ERROR: SKIP TO CHAT ]';
-        btnApply.disabled = false;
+        btnApply.disabled = false; // エラー時はスキップできるようにする
     }
 }
 
 // 実質的なチャット送信＆返答生成 (LLM Phase 2)
 async function proceedWithChat(text) {
+    if (!auth.currentUser) return;
+    
+    // Trial logic
+    const DEV_ADMIN_EMAIL = 'bfty.719@gmail.com';
+    const uid = auth.currentUser.uid;
+    const email = auth.currentUser.email;
+    
+    if (email !== DEV_ADMIN_EMAIL) {
+        try {
+            const userRef = doc(db, "users", uid);
+            const userDoc = await getDoc(userRef);
+            if (!userDoc.exists()) {
+                await setDoc(userRef, { trial_count: 1 });
+            } else {
+                const data = userDoc.data();
+                if (data.trial_count >= 3) {
+                    alert(currentLang === 'en' ? "Free trial limit (3 times) reached." : "無料トライアルの上限（3回）に達しました。");
+                    return;
+                } else {
+                    await updateDoc(userRef, { trial_count: increment(1) });
+                }
+            }
+        } catch (e) {
+            console.error("Firestore trial logic error:", e);
+            alert("通信量制限の確認に失敗しました。データベースが有効になっていない可能性があります。");
+            return;
+        }
+    }
+
     const parts = [];
 
     // --- コンテキスト機能 1: 手動ツリーのコンテキスト ---
@@ -853,75 +1106,32 @@ ${allNotes}
 
 // --- API Wrappers ---
 
-// 1. Gemini API (チャット・要約・抽出共通用)
+// 1. Gemini API (Vertex AI for Firebase)
 async function fetchGeminiAPI(contents, signal = null, onChunk = null) {
-    if (!GEMINI_API_KEY) {
-        throw new Error("Gemini APIキーが設定されていません。右上の⚙設定からAPIキーを保存してください。");
-    }
-
-    // SSEストリーミングを使うかのフラグ
-    const endpoint = onChunk ? 'streamGenerateContent?alt=sse&' : 'generateContent?';
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.1-pro-preview:${endpoint}key=${GEMINI_API_KEY.trim()}`;
-    const options = {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-            contents: contents,
-            tools: [{ googleSearch: {} }] // 最新情報を検索できるよう Grounding を有効化
-        })
-    };
-
-    if (signal) {
-        options.signal = signal;
-    }
-
-    const response = await fetch(url, options);
-
-    if (!response.ok) {
-        let errDetails = "";
-        try {
-            const errJson = await response.json();
-            errDetails = " - " + (errJson.error?.message || JSON.stringify(errJson));
-        } catch (e) { }
-        throw new Error(`Gemini API Error: ${response.status}${errDetails}`);
-    }
-
-    if (onChunk) {
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder("utf-8");
-        let fullText = "";
-        let buffer = "";
-
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
-
-            buffer += decoder.decode(value, { stream: true });
-            const lines = buffer.split('\n');
-            buffer = lines.pop(); // keep incomplete line
-
-            for (const line of lines) {
-                if (line.startsWith('data: ')) {
-                    const dataStr = line.substring(6).trim();
-                    if (dataStr === '[DONE]') continue;
-                    try {
-                        const data = JSON.parse(dataStr);
-                        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-                            const chunkText = data.candidates[0].content.parts[0].text || "";
-                            fullText += chunkText;
-                            onChunk(chunkText, fullText);
-                        }
-                    } catch (e) { }
-                }
+    if (!auth.currentUser) throw new Error("ログインしていません。");
+    
+    // Check if the contents only have text, as required by generateContent.
+    // Vertex AI format requires identical structure as we built.
+    const request = { contents: contents };
+    
+    try {
+        if (onChunk) {
+            const resultStream = await model.generateContentStream(request);
+            let fullText = "";
+            for await (const chunk of resultStream.stream) {
+                if (signal && signal.aborted) throw new DOMException("Aborted", "AbortError");
+                const chunkText = chunk.text();
+                fullText += chunkText;
+                onChunk(chunkText, fullText);
             }
+            return fullText;
+        } else {
+            const result = await model.generateContent(request);
+            return result.response.text();
         }
-        return fullText;
-    } else {
-        const data = await response.json();
-        if (data.candidates && data.candidates[0] && data.candidates[0].content) {
-            return data.candidates[0].content.parts[0].text;
-        }
-        throw new Error("Geminiから予期せぬレスポンスが返りました。");
+    } catch(e) {
+        console.error("Gemini API Error details:", e);
+        throw new Error(`Gemini API Error: ${e.message}`);
     }
 }
 
@@ -1095,110 +1305,173 @@ function toggleContext(label) {
 
 // --- Google Drive API & Markdown Export Logic ---
 
-function gapiLoaded() {
-    gapi.load('client:picker', initializeGapiClient); // PickerAPIもロード
-}
-async function initializeGapiClient() {
-    await gapi.client.init({});
-    gapi.client.load('drive', 'v3');
-}
-function gisLoaded() {
-    tokenClient = google.accounts.oauth2.initTokenClient({
-        client_id: GOOGLE_CLIENT_ID,
-        scope: SCOPES,
-        callback: '' // Defined dynamically in authenticate
-    });
-}
-
 // Promiseラップ版の認証関数
-function authenticateGoogleDrive() {
-    return new Promise((resolve, reject) => {
-        if (accessToken) {
-            resolve();
-            return;
-        }
-        tokenClient.callback = async (resp) => {
-            if (resp.error !== undefined) {
-                reject(resp);
-            }
-            accessToken = resp.access_token;
-            resolve();
-        };
-        tokenClient.requestAccessToken({ prompt: 'consent' });
-    });
-}
-
-// 保存先フォルダを選択 (Google Picker)
-window.showPicker = async function () {
-    if (!GOOGLE_API_KEY || !GOOGLE_CLIENT_ID) {
-        alert("Google Pickerを利用するためには、画面右上の[ CONFIG ]から Google API Key と Client ID を設定してください。");
+async function authenticateGoogleDrive() {
+    if (accessToken && tokenExpiry && Date.now() < parseInt(tokenExpiry)) {
+        if (window.gapi && window.gapi.client) gapi.client.setToken({ access_token: accessToken });
         return;
     }
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/drive.file');
+    
+    // UI反映
+    const btnLogin = document.getElementById('btn-login');
+    if (btnLogin) btnLogin.textContent = '[ WAITING FOR POPUP... ]';
+    
+    const result = await signInWithPopup(auth, provider);
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    accessToken = credential.accessToken;
+    
+    // Save to localStorage to avoid login loop over SPA refresh
+    localStorage.setItem('talktree_drive_token', accessToken);
+    tokenExpiry = Date.now() + 55 * 60 * 1000;
+    localStorage.setItem('talktree_drive_token_expiry', tokenExpiry); // 55 mins
 
+    if (window.gapi && window.gapi.client) gapi.client.setToken({ access_token: accessToken });
+}
+
+// --- Custom Folder Picker Logic ---
+let folderPickerHistory = ['root'];
+
+async function showCustomFolderPicker(targetType, resetHistory = true) {
     try {
         await authenticateGoogleDrive();
+        
+        const modal = document.getElementById('folder-picker-modal');
+        const listDiv = document.getElementById('folder-picker-list');
+        const titleEl = document.getElementById('folder-picker-title');
+        const btnUp = document.getElementById('btn-folder-up');
+        
+        if (resetHistory) folderPickerHistory = ['root'];
+        const currentParent = folderPickerHistory[folderPickerHistory.length - 1];
+        
+        modal.classList.remove('hidden');
+        listDiv.innerHTML = `<div style="padding: 20px; text-align: center; color: var(--text-secondary);">${t('loadingFolders')}</div>`;
+        
+        if (targetType === 'export') {
+            titleEl.textContent = t('selectExport');
+        } else {
+            titleEl.textContent = t('selectKnowledge');
+        }
 
-        const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-            .setMimeTypes('application/vnd.google-apps.folder')
-            .setSelectFolderEnabled(true);
+        if (folderPickerHistory.length > 1) {
+            btnUp.classList.remove('hidden');
+            btnUp.onclick = () => {
+                folderPickerHistory.pop();
+                showCustomFolderPicker(targetType, false);
+            };
+        } else {
+            btnUp.classList.add('hidden');
+        }
 
-        const picker = new google.picker.PickerBuilder()
-            .enableFeature(google.picker.Feature.NAV_HIDDEN)
-            .setDeveloperKey(GOOGLE_API_KEY)
-            .setAppId(GOOGLE_CLIENT_ID.split('-')[0])
-            .setOAuthToken(accessToken)
-            .addView(view)
-            .setTitle("MDファイルの保存先を選択")
-            .setCallback((data) => {
-                if (data.action === google.picker.Action.PICKED) {
-                    const folder = data.docs[0];
+        // Search for folders inside the current parent
+        const response = await gapi.client.drive.files.list({
+            q: `'${currentParent}' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false`,
+            pageSize: 1000,
+            orderBy: "folder,name",
+            fields: 'files(id, name)'
+        });
+
+        const folders = response.result.files || [];
+        listDiv.innerHTML = '';
+        
+        // Add [ + NEW FOLDER ] button always at the top of the list
+        const createItem = document.createElement('div');
+        createItem.className = 'folder-list-item';
+        createItem.style.justifyContent = 'center';
+        createItem.style.background = 'var(--bg-color-alt)';
+        createItem.innerHTML = `<button class="btn-send" style="width:100%; border:1px dashed var(--text-secondary);" data-i18n="btnCreateFolder">${t("btnCreateFolder")}</button>`;
+        createItem.onclick = async () => {
+            const folderName = prompt(t('enterFolderName'));
+            if (!folderName) return;
+            try {
+                const fileMetadata = {
+                    name: folderName,
+                    mimeType: 'application/vnd.google-apps.folder',
+                    parents: currentParent === 'root' ? undefined : [currentParent]
+                };
+                await gapi.client.request({
+                    path: 'https://www.googleapis.com/drive/v3/files',
+                    method: 'POST',
+                    body: JSON.stringify(fileMetadata)
+                });
+                // Reload picker
+                showCustomFolderPicker(targetType, false);
+            } catch(e) {
+                console.error("Create folder failed", e);
+                alert(t("createFolderError"));
+            }
+        };
+        listDiv.appendChild(createItem);
+
+        if (folders.length === 0) {
+            const emptyMsg = document.createElement('div');
+            emptyMsg.style = "padding: 20px; text-align: center; color: var(--text-secondary);";
+            emptyMsg.innerHTML = t('noFoldersAccessible');
+            listDiv.appendChild(emptyMsg);
+        }
+
+        folders.forEach(folder => {
+            const item = document.createElement('div');
+            item.className = 'folder-list-item';
+            
+            const nameSpan = document.createElement('span');
+            nameSpan.className = 'folder-list-name';
+            nameSpan.innerHTML = `📁 ${folder.name}`;
+            nameSpan.onclick = () => {
+                folderPickerHistory.push(folder.id);
+                showCustomFolderPicker(targetType, false);
+            };
+            
+            const btnSelect = document.createElement('button');
+            btnSelect.className = 'btn-folder-select';
+            btnSelect.textContent = '[ SELECT ]';
+            btnSelect.onclick = () => {
+                const prevExport = currentDriveFolderId;
+                const prevKnowledge = currentKnowledgeFolderId;
+
+                if (targetType === 'export') {
                     currentDriveFolderId = folder.id;
                     currentDriveFolderName = folder.name;
                     document.getElementById('current-folder-name').textContent = currentDriveFolderName;
-                }
-            })
-            .build();
-
-        picker.setVisible(true);
-    } catch (e) {
-        console.error("Picker Auth failed", e);
-    }
-};
-
-// ナレッジフォルダを選択
-window.showKnowledgePicker = async function () {
-    if (!GOOGLE_API_KEY || !GOOGLE_CLIENT_ID) {
-        alert("Google Pickerの設定が必要です。設定画面からキーを入力してください。");
-        return;
-    }
-    try {
-        await authenticateGoogleDrive();
-        const view = new google.picker.DocsView(google.picker.ViewId.FOLDERS)
-            .setMimeTypes('application/vnd.google-apps.folder')
-            .setSelectFolderEnabled(true);
-        const picker = new google.picker.PickerBuilder()
-            .enableFeature(google.picker.Feature.NAV_HIDDEN)
-            .setDeveloperKey(GOOGLE_API_KEY)
-            .setAppId(GOOGLE_CLIENT_ID.split('-')[0])
-            .setOAuthToken(accessToken)
-            .addView(view)
-            .setTitle("ナレッジ読み込み用フォルダを選択")
-            .setCallback((data) => {
-                if (data.action === google.picker.Action.PICKED) {
-                    const folder = data.docs[0];
+                    
+                    if (prevExport === 'root' && (prevKnowledge === null || prevKnowledge === 'root')) {
+                        currentKnowledgeFolderId = folder.id;
+                        currentKnowledgeFolderName = folder.name;
+                        localStorage.setItem('talktree_knowledge_folder_id', folder.id);
+                        localStorage.setItem('talktree_knowledge_folder_name', folder.name);
+                        document.getElementById('knowledge-folder-name').textContent = folder.name;
+                    }
+                } else {
                     currentKnowledgeFolderId = folder.id;
                     currentKnowledgeFolderName = folder.name;
-                    localStorage.setItem('talktree_knowledge_folder_id', currentKnowledgeFolderId);
-                    localStorage.setItem('talktree_knowledge_folder_name', currentKnowledgeFolderName);
-                    document.getElementById('knowledge-folder-name').textContent = currentKnowledgeFolderName;
+                    localStorage.setItem('talktree_knowledge_folder_id', folder.id);
+                    localStorage.setItem('talktree_knowledge_folder_name', folder.name);
+                    document.getElementById('knowledge-folder-name').textContent = folder.name;
+                    
+                    if (prevExport === 'root' && (prevKnowledge === null || prevKnowledge === 'root')) {
+                        currentDriveFolderId = folder.id;
+                        currentDriveFolderName = folder.name;
+                        document.getElementById('current-folder-name').textContent = folder.name;
+                    }
                 }
-            })
-            .build();
-        picker.setVisible(true);
+                modal.classList.add('hidden');
+            };
+            
+            item.appendChild(nameSpan);
+            item.appendChild(btnSelect);
+            listDiv.appendChild(item);
+        });
+
     } catch (e) {
-        console.error("Picker Auth failed", e);
+        console.error("Folder fetch failed", e);
+        document.getElementById('folder-picker-list').innerHTML = `<div style="padding: 20px; text-align: center; color: red;">ERROR: ${e.message}</div>`;
     }
-};
+}
+
+// Global binds for inline HTML onclick="showPicker()"
+window.showPicker = () => showCustomFolderPicker('export');
+window.showKnowledgePicker = () => showCustomFolderPicker('knowledge');
 
 // ナレッジフォルダ同期処理
 document.getElementById('btn-sync-knowledge').addEventListener('click', syncKnowledgeBase);
@@ -1449,5 +1722,21 @@ function parseImportedMD(mdText) {
 window.onload = () => {
     init();
     loadSessions();
+    
+    // Disable Apply Button on Knowledge check toggle
+    const kList = document.getElementById('knowledge-list');
+    if (kList) {
+        kList.addEventListener('change', (e) => {
+            if (e.target.classList.contains('knowledge-checkbox')) {
+                const checked = document.querySelectorAll('.knowledge-checkbox:checked').length;
+                const btnApply = document.getElementById('btn-apply-knowledge');
+                if (btnApply) {
+                    btnApply.disabled = checked === 0;
+                }
+            }
+        });
+    }
+
     checkAndShowSettings();
+    applyLanguage();
 };
