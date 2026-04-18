@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GraphTerminal - Interactive Concept Map</title>
     <link rel="stylesheet" href="style.css">
-    
+
     <!-- Google Drive API / Firebase -->
     <script async defer src="https://apis.google.com/js/api.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;700&display=swap"
+        rel="stylesheet">
 </head>
+
 <body>
     <!-- Login Overlay -->
     <div id="login-overlay" class="login-overlay">
@@ -18,7 +22,8 @@
             <p data-i18n="loginDesc" style="margin-bottom: 24px; color: var(--text-secondary); font-size: 0.9rem;">
                 ログインしてセキュアに接続します。<br>Geminiによる推論およびGoogle Driveへのアクセス権がアプリに付与されます。
             </p>
-            <button id="btn-login" class="btn-send" style="width: 100%; padding: 12px; font-size: 1rem;">[ LOG IN WITH GOOGLE ]</button>
+            <button id="btn-login" class="btn-send" style="width: 100%; padding: 12px; font-size: 1rem;">[ LOG IN WITH
+                GOOGLE ]</button>
         </div>
     </div>
     <div class="mobile-tabs" id="mobile-tabs">
@@ -27,6 +32,8 @@
     </div>
 
     <div class="container">
+        <!-- Mobile Overlay -->
+        <div id="mobile-overlay" class="mobile-overlay hidden"></div>
         <!-- Sidebar for Chat History (Hidden by default or toggled) -->
         <div id="sidebar" class="sidebar closed">
             <div class="sidebar-header">
@@ -45,27 +52,33 @@
                 </div>
                 <div style="display: flex; align-items: center; gap: 12px;">
                     <button id="btn-toggle-lang" class="btn-icon">[ EN / JA ]</button>
-                    <button id="btn-toggle-tree" class="btn-icon" title="ツリーを開閉" data-i18n-title="treeToggleTitle" data-i18n="btnTree">[ TREE ]</button>
-                    <button id="btn-toggle-knowledge" class="btn-icon" title="ナレッジを開閉" data-i18n-title="knowledgeToggleTitle" data-i18n="btnKnowledge">[ KNOWLEDGE ]</button>
-                    <button id="btn-settings" class="btn-icon" title="API設定" data-i18n-title="configTitle" data-i18n="btnConfig">[ CONFIG ]</button>
+                    <button id="btn-toggle-tree" class="btn-icon" title="ツリーを開閉" data-i18n-title="treeToggleTitle"
+                        data-i18n="btnTree">[ TREE ]</button>
+                    <button id="btn-toggle-knowledge" class="btn-icon" title="ナレッジを開閉"
+                        data-i18n-title="knowledgeToggleTitle" data-i18n="btnKnowledge">[ KNOWLEDGE ]</button>
+                    <button id="btn-settings" class="btn-icon" title="API設定" data-i18n-title="configTitle"
+                        data-i18n="btnConfig">[ CONFIG ]</button>
                     <div id="context-badge" class="context-badge">CTX: NONE</div>
                 </div>
             </div>
-            
+
             <div class="chat-history" id="chat-history">
                 <div class="chat-message ai" data-i18n="welcomeMsg">
                     こんにちは。何について話しましょうか？会話から概念を自動抽出し、右側にツリーとして構築します。
                 </div>
             </div>
-            
+
             <!-- File Attachment Preview Area -->
             <div id="attachment-preview" class="attachment-preview hidden"></div>
-            
+
             <div class="chat-input-area">
-                <button id="btn-attach" class="btn-icon btn-attach" title="ファイル/画像を添付" data-i18n-title="attachTitle" data-i18n="btnFile">[ + FILE ]</button>
-                <input type="file" id="file-input" style="display:none;" multiple accept="image/*,.txt,.csv,.md,.py,.js,.json">
-                
-                <textarea id="chat-input" placeholder="> Input query... (Enter to send, Shift+Enter for newline)" rows="1" autofocus></textarea>
+                <button id="btn-attach" class="btn-icon btn-attach" title="ファイル/画像を添付" data-i18n-title="attachTitle"
+                    data-i18n="btnFile">[ + FILE ]</button>
+                <input type="file" id="file-input" style="display:none;" multiple
+                    accept="image/*,.txt,.csv,.md,.py,.js,.json">
+
+                <textarea id="chat-input" placeholder="> Input query... (Enter to send, Shift+Enter for newline)"
+                    rows="1" autofocus></textarea>
                 <div class="chat-actions">
                     <button id="chat-submit" class="btn-send" data-i18n="btnSend">[ SEND ]</button>
                     <button id="chat-stop" class="btn-send hidden" data-i18n="btnStop">[ STOP ]</button>
@@ -81,16 +94,21 @@
             <div class="tree-header">
                 <div class="tree-header-main">
                     <span class="sys-title">CONCEPT_MATRIX</span>
-                    <span id="folder-indicator" class="folder-indicator" title="保存先フォルダを変更" data-i18n-title="folderChangeTitle" onclick="showPicker()">
+                    <span id="folder-indicator" class="folder-indicator" title="保存先フォルダを変更"
+                        data-i18n-title="folderChangeTitle" onclick="showPicker()">
                         [ DIR: <span id="current-folder-name" style="font-weight:normal;">root</span> ]
                     </span>
                 </div>
                 <!-- ツリーの上部機能ボタン群 -->
                 <div class="tree-header-actions">
-                    <button id="btn-export-all" class="btn-icon btn-export" title="ツリー全体をMD保存" data-i18n-title="exportTitle" data-i18n="btnExport">[ EXPORT ]</button>
-                    <button id="btn-undo" class="btn-icon btn-undo" title="一つ前の状態に戻す" data-i18n-title="undoTitle" disabled data-i18n="btnUndo">[ UNDO ]</button>
-                    <button id="btn-redo" class="btn-icon btn-undo" title="やり直し" data-i18n-title="redoTitle" disabled data-i18n="btnRedo">[ REDO ]</button>
-                    <button id="btn-import" class="btn-icon btn-import" title="過去のMDファイルをインポート" data-i18n-title="importTitle" data-i18n="btnImport">[ IMPORT ]</button>
+                    <button id="btn-export-all" class="btn-icon btn-export" title="ツリー全体をMD保存"
+                        data-i18n-title="exportTitle" data-i18n="btnExport">[ EXPORT ]</button>
+                    <button id="btn-undo" class="btn-icon btn-undo" title="一つ前の状態に戻す" data-i18n-title="undoTitle"
+                        disabled data-i18n="btnUndo">[ UNDO ]</button>
+                    <button id="btn-redo" class="btn-icon btn-undo" title="やり直し" data-i18n-title="redoTitle" disabled
+                        data-i18n="btnRedo">[ REDO ]</button>
+                    <button id="btn-import" class="btn-icon btn-import" title="過去のMDファイルをインポート"
+                        data-i18n-title="importTitle" data-i18n="btnImport">[ IMPORT ]</button>
                     <input type="file" id="import-file-input" style="display:none;" accept=".md,.txt">
                     <!-- ローディング表示 -->
                     <div id="tree-loading" class="tree-loading hidden">
@@ -98,7 +116,7 @@
                     </div>
                 </div>
             </div>
-            
+
             <div id="dnd-overlay" class="dnd-overlay hidden" data-i18n="dndOverlay">
                 ここにテキストをドロップして新規作成
             </div>
@@ -107,7 +125,7 @@
             <div class="tree-content" id="tree-content">
                 <ul id="tree" class="tree"></ul>
             </div>
-            
+
             <div id="tree-drop-zone" class="tree-drop-zone">
                 <span data-i18n="dropText">[ DROP TEXT HERE TO CREATE CONCEPT ]</span>
             </div>
@@ -117,20 +135,23 @@
         <div id="knowledge-sidebar" class="sidebar right-sidebar closed">
             <div class="sidebar-header">
                 <span class="sys-title">KNOWLEDGE_BASE</span>
-                <span id="knowledge-folder-indicator" class="folder-indicator" title="ナレッジフォルダを設定" data-i18n-title="knowledgeSetTitle" onclick="showKnowledgePicker()">
+                <span id="knowledge-folder-indicator" class="folder-indicator" title="ナレッジフォルダを設定"
+                    data-i18n-title="knowledgeSetTitle" onclick="showKnowledgePicker()">
                     [ DIR: <span id="knowledge-folder-name" style="font-weight:normal;">None</span> ]
                 </span>
             </div>
-            
+
             <div class="knowledge-controls">
                 <input type="text" id="knowledge-search" placeholder="Filter knowledge...">
-                <button id="btn-sync-knowledge" class="btn-small" style="width:100%; margin-top:8px;" data-i18n="btnSync">[ SYNC DRIVE ]</button>
+                <button id="btn-sync-knowledge" class="btn-small" style="width:100%; margin-top:8px;"
+                    data-i18n="btnSync">[ SYNC DRIVE ]</button>
             </div>
 
             <!-- ここでLLMのレコメンドを待つ・コンテキスト適用ボタン -->
             <div id="knowledge-apply-zone" class="knowledge-apply-zone hidden">
                 <p style="font-size:0.8rem; margin-bottom:8px;" data-i18n="llmRec">LLM Recommended Contexts:</p>
-                <button id="btn-apply-knowledge" class="btn-summarize" disabled style="width:100%; padding:8px;" data-i18n="btnApply">[ APPLY TO CHAT ]</button>
+                <button id="btn-apply-knowledge" class="btn-summarize" disabled style="width:100%; padding:8px;"
+                    data-i18n="btnApply">[ APPLY TO CHAT ]</button>
             </div>
 
             <ul class="session-list" id="knowledge-list">
@@ -140,24 +161,28 @@
         </div>
 
     </div>
-    
+
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
         <div class="modal-content">
             <h3 class="sys-title" data-i18n="settingsTitle">SYSTEM_CONFIGURATION</h3>
             <p data-i18n="settingsDesc">GraphTerminalの各種設定を行います。(情報はブラウザにのみ保存されます)</p>
-            
+
             <div class="form-group">
                 <label for="setting-md-template" data-i18n="settingsTemplateLabel">エクスポート時のフォーマットルール (メタデータ)</label>
-                <textarea id="setting-md-template" rows="5" style="width:100%; box-sizing:border-box; font-family:var(--font-mono); font-size:0.8rem; background:transparent; color:var(--text-primary); border:1px solid var(--panel-border); padding:8px;">---
+                <textarea id="setting-md-template" rows="5"
+                    style="width:100%; box-sizing:border-box; font-family:var(--font-mono); font-size:0.8rem; background:transparent; color:var(--text-primary); border:1px solid var(--panel-border); padding:8px;">---
 > 【SYSTEM_META】
 > 概要: これはこのファイルの内容サマリーです。
 > タグ: #Example</textarea>
-                <small style="color:var(--text-secondary); margin-top:4px; display:block;"><span data-i18n="settingsTemplateDesc">※空で保存するとデフォルトに戻ります。MDファイルの末尾等に付加されRAG時にメタデータとして使われます。</span></small>
+                <small style="color:var(--text-secondary); margin-top:4px; display:block;"><span
+                        data-i18n="settingsTemplateDesc">※空で保存するとデフォルトに戻ります。MDファイルの末尾等に付加されRAG時にメタデータとして使われます。</span></small>
             </div>
 
-            <div style="margin-top: 20px; border-top: 1px dashed var(--panel-border); padding-top: 20px; text-align: center;">
-                <button id="btn-logout" class="btn-secondary" style="border-color: #ff4444; color: #ff4444;" data-i18n="btnLogout">[ LOG OUT ACCOUNT ]</button>
+            <div
+                style="margin-top: 20px; border-top: 1px dashed var(--panel-border); padding-top: 20px; text-align: center;">
+                <button id="btn-logout" class="btn-secondary" style="border-color: #ff4444; color: #ff4444;"
+                    data-i18n="btnLogout">[ LOG OUT ACCOUNT ]</button>
             </div>
             <div class="modal-footer">
                 <button id="btn-close-settings" class="btn-secondary">[ CLOSE ]</button>
@@ -171,14 +196,15 @@
         <div class="modal-content" style="width: 500px;">
             <h3 class="sys-title" id="folder-picker-title">SELECT_FOLDER</h3>
             <p id="folder-picker-desc">Google Driveからフォルダを選択してください。</p>
-            
-            <div style="display:flex; justify-content:space-between; margin-top:10px;"><button id="btn-folder-up" class="btn-icon hidden" style="font-size:0.8rem;" data-i18n="btnFolderUp">[ ⬅ UP ]</button></div>
+
+            <div style="display:flex; justify-content:space-between; margin-top:10px;"><button id="btn-folder-up"
+                    class="btn-icon hidden" style="font-size:0.8rem;" data-i18n="btnFolderUp">[ ⬅ UP ]</button></div>
             <div id="folder-picker-list" class="folder-list">
                 <div style="padding: 20px; text-align: center; color: var(--text-secondary);">
                     LOADING FOLDERS...
                 </div>
             </div>
-            
+
             <div class="modal-actions" style="margin-top: 15px;">
                 <button id="btn-close-folder-picker" class="btn-secondary" data-i18n="btnCancel">[ CANCEL ]</button>
             </div>
@@ -187,4 +213,5 @@
 
     <script type="module" src="app.js"></script>
 </body>
+
 </html>

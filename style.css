@@ -733,6 +733,20 @@ body {
   z-index: 100;
 }
 
+
+/* Mobile Overlay */
+.mobile-overlay {
+  display: none;
+  position: fixed;
+  top: 0; left: 0; width: 100vw; height: 100vh;
+  background: rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(2px);
+  z-index: 999;
+}
+.mobile-overlay.active {
+  display: block;
+}
+
 @media (max-width: 800px) {
   body {
     flex-direction: column;
@@ -756,6 +770,71 @@ body {
     background: var(--text-primary);
     color: var(--bg-color);
   }
+  
+  /* Off-canvas Drawers for Mobile */
+  .sidebar, .right-sidebar {
+    position: fixed !important;
+    top: 0;
+    height: 100vh !important;
+    z-index: 1000;
+    box-shadow: 0 0 20px rgba(0,0,0,0.5);
+    background: var(--bg-color);
+  }
+
+  .sidebar { 
+    left: 0; 
+    width: 280px !important; 
+    max-width: 85vw; 
+    transition: transform 0.3s ease !important;
+    transform: translateX(0);
+  }
+  
+  .right-sidebar { 
+    left: auto !important;
+    right: 0; 
+    width: 300px !important; 
+    max-width: 85vw; 
+    transition: transform 0.3s ease !important;
+    transform: translateX(0);
+  }
+
+  .sidebar.closed {
+    transform: translateX(-100%);
+    width: 280px !important;
+    padding: 15px !important;
+  }
+
+  .right-sidebar.closed {
+    transform: translateX(100%);
+    width: 300px !important;
+    padding: 15px !important;
+  }
+
+  .resizer { display: none !important; }
+
+  /* UI Layout Fixes */
+  .right-sidebar {
+    left: auto !important;
+  }
+  .chat-header {
+    flex-wrap: wrap;
+  }
+  .chat-header > div {
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    margin-top: 5px;
+  }
+  .chat-input-area {
+    gap: 8px;
+  }
+  .btn-attach, .btn-send {
+    flex-shrink: 0;
+  }
+  body, html {
+    overflow-x: hidden;
+  }
+
+
   .container {
     flex-direction: column;
     position: relative;

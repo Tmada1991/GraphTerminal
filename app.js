@@ -227,6 +227,7 @@ const dom = {
     btnCloseSettings: document.getElementById('btn-close-settings'),
 
     knowledgeSidebar: document.getElementById('knowledge-sidebar'),
+    mobileOverlay: document.getElementById('mobile-overlay'),
     btnToggleKnowledge: document.getElementById('btn-toggle-knowledge'),
     treePanel: document.getElementById('tree-panel'),
     btnToggleTree: document.getElementById('btn-toggle-tree'),
@@ -409,6 +410,31 @@ function redoTreeState() {
 }
 
 // --- Initial Render ---
+
+function updateMobileOverlay() {
+    if (window.innerWidth <= 800) {
+        const isLeftOpen = !dom.sidebar.classList.contains('closed');
+        const isRightOpen = !dom.knowledgeSidebar.classList.contains('closed');
+        if (isLeftOpen || isRightOpen) {
+            dom.mobileOverlay.classList.remove('hidden');
+            dom.mobileOverlay.classList.add('active');
+        } else {
+            dom.mobileOverlay.classList.add('hidden');
+            dom.mobileOverlay.classList.remove('active');
+        }
+    } else {
+        dom.mobileOverlay.classList.add('hidden');
+        dom.mobileOverlay.classList.remove('active');
+    }
+}
+
+// Close sidebars on overlay click
+dom.mobileOverlay.addEventListener('click', () => {
+    dom.sidebar.classList.add('closed');
+    dom.knowledgeSidebar.classList.add('closed');
+    updateMobileOverlay();
+});
+
 function init() {
     // -- Firebase Auth Observer --
     onAuthStateChanged(auth, (user) => {
