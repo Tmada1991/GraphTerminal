@@ -6,7 +6,9 @@
 > **"From Answer Generator to Understanding Engine."**
 > A cognitive interface that treats interactions with LLMs not as a "chat history" but as an **"understanding structure"**.
 
-![GraphTerminal Demo](./demo.gif)<!-- TODO: Insert demo GIF here -->
+![GraphTerminal Demo](./demo.gif)
+
+**[▶ Try it Now](https://tmada1991.github.io/GraphTerminal/)** · **[🌐 Website / LP](https://slxbtybj.gensparkclaw.com)** · **[📝 Give Feedback](https://github.com/Tmada1991/GraphTerminal/issues)**
 
 ## 🧩 Overview
 GraphTerminal is a UI that automatically extracts concepts from conversations with LLMs and dynamically builds them into a Tree (DAG) structure. It transforms fragments of knowledge from fleeting chat logs into a **"structurally understandable canvas"**.
@@ -95,6 +97,10 @@ Assign states to nodes (e.g., Unresolved, Needs Verification, Ambiguous) to **ex
 ## 📜 License
 This project is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
 *Free for personal, academic, and non-profit use. Commercial use is strictly prohibited.*
+
+## 🌐 Website
+
+[→ https://slxbtybj.gensparkclaw.com](https://slxbtybj.gensparkclaw.com)
 
 ---
 
@@ -189,3 +195,11 @@ GraphTerminalは**「対話ログ」ではなく「思考構造」を扱う**と
 ## 📜 ライセンス
 This project is licensed under the [PolyForm Noncommercial License 1.0.0](./LICENSE).
 ※個人利用・学術研究・非営利目的での利用/改変は完全自由です。商用利用は禁じます。
+
+## 🌐 リンク
+
+| | |
+|---|---|
+| **アプリ** | [▶ tmada1991.github.io/GraphTerminal](https://tmada1991.github.io/GraphTerminal/) |
+| **LP** | [🌐 slxbtybj.gensparkclaw.com](https://slxbtybj.gensparkclaw.com) |
+| **フィードバック** | [📝 Issues](https://github.com/Tmada1991/GraphTerminal/issues) |
