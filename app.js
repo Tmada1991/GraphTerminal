@@ -2,24 +2,32 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebas
 import { getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
 import { getVertexAI, getGenerativeModel } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-vertexai.js";
 import { getFirestore, doc, getDoc, setDoc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
-const firebaseConfig = {
-  apiKey: "AIzaSyDfLLHd8tUYj6wG9c6lNCHCs5yxUyqRWWw",
-  authDomain: "gen-lang-client-0344873040.firebaseapp.com",
-  projectId: "gen-lang-client-0344873040",
-  storageBucket: "gen-lang-client-0344873040.firebasestorage.app",
-  messagingSenderId: "670847723180",
-  appId: "1:670847723180:web:015f34e7c549945ab6e109"
-};
+let app, auth, vertexAI, db, model;
+let GOOGLE_API_KEY = "";
+let GOOGLE_CLIENT_ID = "";
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const vertexAI = getVertexAI(app);
-const db = getFirestore(app);
-const model = getGenerativeModel(vertexAI, { model: "gemini-2.5-pro" });
+const savedConfigStr = localStorage.getItem('talktree_firebase_config');
+let isFirebaseConfigured = false;
 
-// API Keys are now derived automatically for Google Picker
-let GOOGLE_API_KEY = firebaseConfig.apiKey;
-let GOOGLE_CLIENT_ID = firebaseConfig.messagingSenderId;
+if (savedConfigStr) {
+    try {
+        const firebaseConfig = JSON.parse(savedConfigStr);
+        app = initializeApp(firebaseConfig);
+        auth = getAuth(app);
+        vertexAI = getVertexAI(app);
+        db = getFirestore(app);
+        model = getGenerativeModel(vertexAI, { 
+          model: "gemini-2.5-pro",
+          tools: [{ googleSearch: {} }]
+        });
+        GOOGLE_API_KEY = firebaseConfig.apiKey;
+        GOOGLE_CLIENT_ID = firebaseConfig.messagingSenderId;
+        isFirebaseConfigured = true;
+    } catch (e) {
+        console.error("Invalid Firebase Config in LocalStorage", e);
+        localStorage.removeItem('talktree_firebase_config');
+    }
+}
 const SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
 
@@ -61,7 +69,9 @@ const i18nDict = {
         btnRedo: "[ やり直し ]",
         redoTitle: "やり直し",
         btnImport: "[ インポート ]",
-        btnFile: "[ ＋ファイル ]",
+        btnExtract: "[ 抽出 ]",
+        extractTitle: "直近の会話から概念を抽出",
+        btnFile: "[ + ]",
         btnSend: "[ 送信 ]",
         btnStop: "[ 停止 ]",
         btnSync: "[ ドライブ同期 ]",
@@ -112,7 +122,9 @@ const i18nDict = {
         btnRedo: "[ REDO ]",
         redoTitle: "Redo",
         btnImport: "[ IMPORT ]",
-        btnFile: "[ + FILE ]",
+        btnExtract: "[ EXTRACT ]",
+        extractTitle: "Extract concepts from recent chat",
+        btnFile: "[ + ]",
         btnSend: "[ SEND ]",
         btnStop: "[ STOP ]",
         btnSync: "[ SYNC DRIVE ]",
@@ -217,6 +229,7 @@ const dom = {
     btnUndo: document.getElementById('btn-undo'),
     btnRedo: document.getElementById('btn-redo'),
     btnImport: document.getElementById('btn-import'),
+    btnExtract: document.getElementById('btn-extract'),
     importFileInput: document.getElementById('import-file-input'),
     btnExportAll: document.getElementById('btn-export-all'),
 
@@ -227,6 +240,7 @@ const dom = {
     btnCloseSettings: document.getElementById('btn-close-settings'),
 
     knowledgeSidebar: document.getElementById('knowledge-sidebar'),
+    mobileOverlay: document.getElementById('mobile-overlay'),
     btnToggleKnowledge: document.getElementById('btn-toggle-knowledge'),
     treePanel: document.getElementById('tree-panel'),
     btnToggleTree: document.getElementById('btn-toggle-tree'),
@@ -409,6 +423,31 @@ function redoTreeState() {
 }
 
 // --- Initial Render ---
+
+function updateMobileOverlay() {
+    if (window.innerWidth <= 800) {
+        const isLeftOpen = !dom.sidebar.classList.contains('closed');
+        const isRightOpen = !dom.knowledgeSidebar.classList.contains('closed');
+        if (isLeftOpen || isRightOpen) {
+            dom.mobileOverlay.classList.remove('hidden');
+            dom.mobileOverlay.classList.add('active');
+        } else {
+            dom.mobileOverlay.classList.add('hidden');
+            dom.mobileOverlay.classList.remove('active');
+        }
+    } else {
+        dom.mobileOverlay.classList.add('hidden');
+        dom.mobileOverlay.classList.remove('active');
+    }
+}
+
+// Close sidebars on overlay click
+dom.mobileOverlay.addEventListener('click', () => {
+    dom.sidebar.classList.add('closed');
+    dom.knowledgeSidebar.classList.add('closed');
+    updateMobileOverlay();
+});
+
 function init() {
     // -- Firebase Auth Observer --
     onAuthStateChanged(auth, (user) => {
@@ -750,6 +789,32 @@ function init() {
         };
         reader.readAsText(file);
     });
+
+    if (dom.btnExtract) {
+        dom.btnExtract.addEventListener('click', () => {
+            if (chatHistoryData.length < 2) {
+                alert("抽出できる会話履歴がありません。");
+                return;
+            }
+            // 直近のユーザー発言とAIの回答を取得
+            let lastUserText = "";
+            let lastAiText = "";
+            for (let i = chatHistoryData.length - 1; i >= 0; i--) {
+                const msg = chatHistoryData[i];
+                if (msg.role === 'model' && !lastAiText) {
+                    lastAiText = msg.parts.map(p => p.text).join('\n');
+                } else if (msg.role === 'user' && !lastUserText) {
+                    lastUserText = msg.parts.map(p => p.text || '[ファイル]').join('\n');
+                }
+                if (lastUserText && lastAiText) break;
+            }
+            if (lastUserText && lastAiText) {
+                queueExtractionTask(lastUserText, lastAiText);
+            } else {
+                alert("抽出可能な会話ペアが見つかりませんでした。");
+            }
+        });
+    }
 
     // 送信ボタン
     if (dom.chatSubmit) {
@@ -1720,8 +1785,51 @@ function parseImportedMD(mdText) {
 
 // Boot
 window.onload = () => {
-    init();
-    loadSessions();
+    if (isFirebaseConfigured) {
+        init();
+        loadSessions();
+    } else {
+        // Show setup overlay
+        const setupOverlay = document.getElementById('setup-overlay');
+        const loginOverlay = document.getElementById('login-overlay');
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        if (setupOverlay) setupOverlay.classList.remove('hidden');
+    }
+    
+    // Setup Modal Logic
+    const btnSaveSetup = document.getElementById('btn-save-setup');
+    if (btnSaveSetup) {
+        btnSaveSetup.addEventListener('click', () => {
+            const inputStr = document.getElementById('setup-config-input').value.trim();
+            if (!inputStr) return;
+            try {
+                let configObj;
+                try {
+                    configObj = JSON.parse(inputStr);
+                } catch(e) {
+                    configObj = (new Function("return " + inputStr))();
+                }
+                if (configObj && configObj.apiKey && configObj.projectId) {
+                    localStorage.setItem('talktree_firebase_config', JSON.stringify(configObj));
+                    window.location.reload();
+                } else {
+                    alert("無効な設定です。apiKeyやprojectIdが含まれているか確認してください。");
+                }
+            } catch (err) {
+                alert("設定のパースに失敗しました。書式が正しいか確認してください。");
+            }
+        });
+    }
+
+    const btnResetFirebase = document.getElementById('btn-reset-firebase');
+    if (btnResetFirebase) {
+        btnResetFirebase.addEventListener('click', () => {
+            if(confirm("Firebase設定をリセットし、再設定画面に戻りますか？")) {
+                localStorage.removeItem('talktree_firebase_config');
+                window.location.reload();
+            }
+        });
+    }
     
     // Disable Apply Button on Knowledge check toggle
     const kList = document.getElementById('knowledge-list');
